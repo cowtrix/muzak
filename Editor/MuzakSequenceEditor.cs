@@ -1,25 +1,35 @@
-﻿using UnityEditor;
+﻿using System.Linq;
+using UnityEditor;
 using UnityEngine;
 
 namespace Muzak
 {
     public class MuzakSequenceEditor : EditorWindow
     {
+        public Vector2 Scroll { get; private set; }
         public MuzakTrack CurrentTrack { get; private set; }
-        public MuzakChannel CurrentChannel { get; private set; }
-        public MuzakSequence CurrentSequence { get; private set; }
-        public static void SetData(MuzakTrack track, MuzakChannel channel, MuzakSequence sequence)
+        public MuzakChannel CurrentChannel => CurrentTrack.Channels.ElementAtOrDefault(m_channelIndex);
+        private int m_channelIndex;
+        public MuzakSequence CurrentSequence => CurrentChannel?.Sequences.ElementAtOrDefault(m_sequenceIndex);
+        private int m_sequenceIndex;
+        public static void SetData(MuzakTrack track, int channel, int sequence)
         {
-            var w = GetWindow<MuzakSequenceEditor>($"Edit Sequence: {channel.Clip}", true, typeof(MuzakEditor));
+            var w = GetWindow<MuzakSequenceEditor>($"Edit Sequence", true, typeof(MuzakEditor));
             w.CurrentTrack = track;
-            w.CurrentChannel = channel;
-            w.CurrentSequence = sequence;
+            w.m_channelIndex = channel;
+            w.m_sequenceIndex = sequence;
         }
 
         private void OnGUI()
         {
+            if(!CurrentTrack || CurrentChannel == null || CurrentSequence == null)
+            {
+                EditorGUILayout.HelpBox("No sequence selected.", MessageType.Info);
+                return;
+            }
             GUI.skin = Resources.Load<GUISkin>("MuzakSkin");
             GUI.enabled = false;
+            EditorGUILayout.BeginVertical();
             EditorGUILayout.BeginVertical("Window", GUILayout.ExpandWidth(true), GUILayout.Height(20));
             EditorGUILayout.BeginHorizontal();
             GUILayout.Label("Track    ");
@@ -32,25 +42,37 @@ namespace Muzak
             EditorGUILayout.EndVertical();
             GUI.enabled = true;
 
-            var minTime = 0f;
-            var maxTime = CurrentChannel.Clip.length;
-            var startTime = (float)CurrentSequence.Offset;
-            var endTime = startTime + CurrentSequence.Duration;
-
-            EditorGUILayout.BeginVertical("Box");
+            Scroll = EditorGUILayout.BeginScrollView(Scroll);
             GUILayout.Label("", GUILayout.Height(64), GUILayout.ExpandWidth(true));
             var lastRect = GUILayoutUtility.GetLastRect();
             var selectedRect = new Rect(
                 lastRect.x + (float)((CurrentSequence.Offset / CurrentChannel.Clip.length) * lastRect.width),
                 lastRect.y,
-                (CurrentSequence.Duration / CurrentChannel.Clip.length) * lastRect.width,
+                ((float)CurrentSequence.Duration / CurrentChannel.Clip.length) * lastRect.width,
                 lastRect.height);
             GUI.Label(selectedRect, "", EditorStyles.selectionRect);
             GUI.DrawTexture(lastRect, MuzakClipDisplayUtility.GetTexture(CurrentChannel.Clip));
-            EditorGUILayout.MinMaxSlider(ref startTime, ref endTime, minTime, maxTime);
-            CurrentSequence.Offset = startTime;
-            CurrentSequence.Duration = endTime - startTime;
+
+            // Offset field and duration field
+            CurrentSequence.Offset = EditorGUILayout.DoubleField("Offset", CurrentSequence.Offset);
+            EditorGUILayout.BeginHorizontal();
+            CurrentSequence.Duration = System.Math.Min(CurrentChannel.Clip.length - CurrentSequence.Offset, EditorGUILayout.DoubleField("Duration", CurrentSequence.Duration));
+            if (GUILayout.Button(EditorGUIUtility.IconContent("StepButton"), GUILayout.Height(20), GUILayout.Width(30)))
+            {
+                CurrentSequence.Duration = CurrentChannel.Clip.length;
+            }
+            EditorGUILayout.EndHorizontal();
+
+
+            GUILayout.Label("Volume over time");
+            CurrentSequence.VolumeCurve = EditorGUILayout.CurveField(CurrentSequence.VolumeCurve);
+
+            GUILayout.Label("Volume over strength");
+            CurrentSequence.StrengthCurve = EditorGUILayout.CurveField(CurrentSequence.StrengthCurve);
+
+            EditorUtility.SetDirty(CurrentTrack);
             EditorGUILayout.EndVertical();
+            EditorGUILayout.EndScrollView();
         }
     }
 }

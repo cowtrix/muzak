@@ -15,7 +15,7 @@ namespace Muzak
         public AudioClip Clip;
         public List<MuzakSequence> Sequences = new List<MuzakSequence>();
 
-        public MuzakSequence GetSequenceAtTime(float time) => Sequences.OrderBy(s => s.StartTime).FirstOrDefault(s => s.StartTime <= time);
+        public MuzakSequence GetSequenceAtTime(double time) => Sequences.OrderBy(s => s.StartTime).FirstOrDefault(s => s.StartTime <= time);
     }
 
 
@@ -26,10 +26,11 @@ namespace Muzak
         public float StartThreshold;
         [Range(0, 1)]
         public float EndThreshold;
-        public float Duration;
+        public double Duration;
         public AnimationCurve VolumeCurve;
+        public AnimationCurve StrengthCurve;
         public double StartTime;
-        public float Offset;
+        public double Offset;
     }
 
     [CreateAssetMenu(menuName = "Muzak/Track")]
@@ -41,5 +42,6 @@ namespace Muzak
         public AudioMixer Mixer;
         public List<MuzakChannel> Channels = new List<MuzakChannel>();
         public float Duration;
+        public bool Loop;
     }
 }

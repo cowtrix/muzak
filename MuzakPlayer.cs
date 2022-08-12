@@ -7,6 +7,16 @@ namespace Muzak
 {
     public class MuzakPlayer : MonoBehaviour
     {
+        public MuzakTrack Track;
+
+        private void Start()
+        {
+            if (Track)
+            {
+                PlayTrack(Track);
+            }
+        }
+
         public void PlayTrack(MuzakTrack track)
         {
             StartCoroutine(PlayTrackAsync(track));
@@ -23,27 +33,38 @@ namespace Muzak
                 source.playOnAwake = false;
                 sourceChannelMapping[channel] = source;
             }
-            var timer = 0f;
-            foreach (var sourceChannel in sourceChannelMapping)
+
+            var loopStartTime = AudioSettings.dspTime;
+            do
             {
-                foreach (var sequence in sourceChannel.Key.Sequences)
-                {
-                    sourceChannel.Value.PlayScheduled(AudioSettings.dspTime + sequence.StartTime);
-                }
-            }
-            while (timer < track.Duration)
-            {
+                const double lookAhead = .1;
+                var timer = 0.0;
                 foreach (var sourceChannel in sourceChannelMapping)
                 {
-                    var channel = sourceChannel.Key;
-                    var sequence = channel.GetSequenceAtTime(timer);
-                    var sequenceTime = timer - (float)sequence.StartTime;
-                    var source = sourceChannel.Value;
-                    source.volume = channel.Volume * sequence.VolumeCurve.Evaluate(sequenceTime / sequence.Duration);
+                    foreach (var sequence in sourceChannel.Key.Sequences)
+                    {
+                        var nextPlayTime = loopStartTime + sequence.StartTime;
+                        sourceChannel.Value.time = (float)sequence.Offset;
+                        sourceChannel.Value.PlayScheduled(nextPlayTime);
+                        sourceChannel.Value.SetScheduledEndTime(nextPlayTime + sequence.Duration);
+                    }
                 }
-                yield return null;
-                timer += Time.deltaTime;
+                while (AudioSettings.dspTime < (loopStartTime + Track.Duration) - lookAhead)
+                {
+                    foreach (var sourceChannel in sourceChannelMapping)
+                    {
+                        // Adjust volume
+                        var channel = sourceChannel.Key;
+                        var sequence = channel.GetSequenceAtTime(timer);
+                        var sequenceTime = timer - (float)sequence.StartTime;
+                        var source = sourceChannel.Value;
+                        source.volume = channel.Volume * sequence.VolumeCurve.Evaluate((float)sequenceTime / (float)sequence.Duration);
+                    }
+                    yield return null;
+                }
+                loopStartTime = AudioSettings.dspTime + lookAhead;
             }
+            while (track.Loop);
             foreach (var sourceChannel in sourceChannelMapping)
             {
                 sourceChannel.Value.gameObject.SafeDestroy();

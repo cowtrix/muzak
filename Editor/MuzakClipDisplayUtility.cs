@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using Common;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Muzak
@@ -13,43 +14,47 @@ namespace Muzak
             {
                 return null;
             }
-            if (m_textureLookup.TryGetValue(clip, out Texture2D texture))
+            if (m_textureLookup.TryGetValue(clip, out Texture2D tex) && tex)
             {
-                return texture;
+                return tex;
             }
-            var w = Mathf.RoundToInt(clip.length * 64);
-            var h = 64;
-            texture = new Texture2D(w, h);
+            var width = Mathf.RoundToInt(clip.length * 64);
+            var height = 64;
+            tex = new Texture2D(width, height);
 
-            var samples = new float[clip.samples * clip.channels];
+            float[] samples = new float[clip.samples];
+            float[] waveform = new float[width];
             clip.GetData(samples, 0);
-
-            var sampleCounter = 0;
-            var xTexStep = 0;
-            var step = Mathf.Max(1, (clip.samples / 2) / w);
-            while (sampleCounter < samples.Length / 2)
+            int packSize = (clip.samples / width) + 1;
+            int s = 0;
+            for (int i = 0; i < clip.samples; i += packSize)
             {
-                var x = sampleCounter;
-                var leftChannel = samples[sampleCounter];
-                var rightChannel = samples[sampleCounter + samples.Length / 2];
-                for (var y = 0; y < h / 2; y++)
-                {
-                    var hF = (float)h / 2;
-                    var yF = 1 - (y / hF);
-                    texture.SetPixel(xTexStep, y, leftChannel > yF / hF ? Color.cyan : Color.clear);
-                }
-                for (var y = h / 2; y < h; y++)
-                {
-                    var hF = (float)h / 2;
-                    var yF = ((y - (h / 2)) / hF);
-                    texture.SetPixel(xTexStep, y, rightChannel > yF / hF ? Color.cyan : Color.clear);
-                }
-                sampleCounter += step;
-                xTexStep++;
+                waveform[s] = Mathf.Abs(samples[i]);
+                s++;
             }
-            texture.Apply();
-            m_textureLookup.Add(clip, texture);
-            return texture;
+
+            var foreground = Color.white.WithAlpha(.5f);
+            var background = Color.clear;
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    tex.SetPixel(x, y, background);
+                }
+            }
+
+            for (int x = 0; x < waveform.Length; x++)
+            {
+                for (int y = 0; y <= waveform[x] * ((float)height * .75f); y++)
+                {
+                    tex.SetPixel(x, (height / 2) + y, foreground);
+                    tex.SetPixel(x, (height / 2) - y, foreground);
+                }
+            }
+            tex.Apply();
+            m_textureLookup[clip] = tex;
+            return tex;
         }
     }
 }
