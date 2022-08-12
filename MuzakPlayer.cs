@@ -8,6 +8,8 @@ namespace Muzak
     public class MuzakPlayer : MonoBehaviour
     {
         public MuzakTrack Track;
+        [Range(0, 1)]
+        public float Strength = 1;
 
         private void Start()
         {
@@ -29,6 +31,7 @@ namespace Muzak
             {
                 var source = new GameObject($"MuzakTrackPlayer_{channel.Clip.name}")
                     .AddComponent<AudioSource>();
+                source.transform.SetParent(transform);
                 source.clip = channel.Clip;
                 source.playOnAwake = false;
                 sourceChannelMapping[channel] = source;
@@ -38,7 +41,6 @@ namespace Muzak
             do
             {
                 const double lookAhead = .1;
-                var timer = 0.0;
                 foreach (var sourceChannel in sourceChannelMapping)
                 {
                     foreach (var sequence in sourceChannel.Key.Sequences)
@@ -51,14 +53,21 @@ namespace Muzak
                 }
                 while (AudioSettings.dspTime < (loopStartTime + Track.Duration) - lookAhead)
                 {
+                    var t = AudioSettings.dspTime - loopStartTime;
                     foreach (var sourceChannel in sourceChannelMapping)
                     {
                         // Adjust volume
                         var channel = sourceChannel.Key;
-                        var sequence = channel.GetSequenceAtTime(timer);
-                        var sequenceTime = timer - (float)sequence.StartTime;
+                        var sequence = channel.GetSequenceAtTime(t);
+                        if(sequence == null)
+                        {
+                            continue;
+                        }
+                        var sequenceTime = t - (float)sequence.StartTime;
                         var source = sourceChannel.Value;
-                        source.volume = channel.Volume * sequence.VolumeCurve.Evaluate((float)sequenceTime / (float)sequence.Duration);
+                        source.volume = channel.Volume * 
+                            sequence.StrengthCurve.Evaluate(Strength) *
+                            sequence.VolumeCurve.Evaluate((float)sequenceTime / (float)sequence.Duration);
                     }
                     yield return null;
                 }

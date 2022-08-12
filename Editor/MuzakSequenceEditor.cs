@@ -22,9 +22,10 @@ namespace Muzak
 
         private void OnGUI()
         {
-            if(!CurrentTrack || CurrentChannel == null || CurrentSequence == null)
+            titleContent = new GUIContent("Sequence Editor");
+            if (!CurrentTrack || CurrentChannel == null || CurrentSequence == null)
             {
-                EditorGUILayout.HelpBox("No sequence selected.", MessageType.Info);
+                EditorGUILayout.HelpBox("No sequence selected.", MessageType.Info);                
                 return;
             }
             GUI.skin = Resources.Load<GUISkin>("MuzakSkin");

@@ -1,3 +1,4 @@
+using Common;
 using System;
 using System.Collections;
 using System.Linq;
@@ -16,14 +17,35 @@ namespace Muzak
             w.titleContent = new GUIContent("Muzak Editor");
         }
 
-        public const int TIME_LEAD = 20;
-        public const float SECOND_WIDTH = 59.5f;
+        public const int TIME_LEAD = 1;
+        public const float SECOND_WIDTH = 59f;
 
         public MuzakTrack Track { get; private set; }
         public Vector2 TrackScroll { get; private set; }
         public bool DragDown { get; private set; }
         public bool SnapEnabled { get; private set; } = true;
         public float SnapThreshold { get; private set; } = .25f;
+        public Texture2D GridTexture
+        {
+            get
+            {
+                if(!m_gridTexture)
+                {
+                    m_gridTexture = new Texture2D(64, 64);
+                    for(var x = 0; x < 64; x++)
+                    {
+                        for (var y = 0; y < 64; y++)
+                        {
+                            m_gridTexture.SetPixel(x, y, x == 0 ? Color.white.WithAlpha(.5f) : Color.clear);
+                        }
+                    }
+                    m_gridTexture.Apply();
+                    m_gridTexture.hideFlags = HideFlags.DontSave;
+                }
+                return m_gridTexture;
+            }
+        }
+        private Texture2D m_gridTexture;
 
         private void OnGUI()
         {
@@ -39,7 +61,12 @@ namespace Muzak
             SnapThreshold = EditorGUILayout.FloatField(SnapThreshold, GUILayout.Width(30));
             GUI.enabled = true;
 
-            Track.Loop = GUILayout.Toggle(Track.Loop, EditorGUIUtility.IconContent("d_preAudioLoopOff"), GUILayout.Width(100));
+            GUILayout.Label(EditorGUIUtility.IconContent("d_preAudioLoopOff"), GUILayout.Width(20));
+            Track.Loop = EditorGUILayout.Toggle(Track.Loop, GUILayout.Width(30));
+
+            GUILayout.Label("BPM", GUILayout.Width(30));
+            Track.BPM = EditorGUILayout.IntField(Track.BPM, GUILayout.Width(30));
+
             EditorGUILayout.EndHorizontal();
 
             if (!Track)
@@ -58,7 +85,7 @@ namespace Muzak
             {
                 // Track list
                 EditorGUILayout.BeginScrollView(yScroll, GUIStyle.none, GUIStyle.none, GUILayout.Width(126));
-                EditorGUILayout.LabelField("", GUILayout.Height(20));
+                EditorGUILayout.LabelField("Channels", EditorStyles.miniLabel, GUILayout.Height(20));
                 foreach (var channel in Track.Channels)
                 {
                     EditorGUILayout.BeginVertical("Window", GUILayout.Height(64), GUILayout.Width(110));
@@ -72,7 +99,7 @@ namespace Muzak
                                 StartThreshold = 0,
                                 EndThreshold = 0,
                                 VolumeCurve = AnimationCurve.Linear(0, 1, 1, 1),
-                                StrengthCurve = AnimationCurve.Linear(0, 1, 1, 1),
+                                StrengthCurve = AnimationCurve.Linear(0, 0, 1, 1),
                                 StartTime = 0,
                                 Duration = newClip.length,
                             });
@@ -99,8 +126,8 @@ namespace Muzak
 
             {
                 EditorGUILayout.BeginScrollView(xScroll, GUIStyle.none, GUIStyle.none, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
-                EditorGUILayout.BeginHorizontal(GUILayout.ExpandWidth(false));
-                GUILayout.Label("", GUILayout.Width(2));
+                EditorGUILayout.BeginHorizontal(GUILayout.Width(Track.Duration * 64));
+                //GUILayout.Label("", GUILayout.Width(2));
                 for (var i = 0; i < Track.Duration + TIME_LEAD; i++)
                 {
                     GUILayout.Label($"{i} . . . . . . . . . . . . . ", EditorStyles.miniBoldLabel, GUILayout.Width(SECOND_WIDTH), GUILayout.Height(15));
@@ -111,19 +138,19 @@ namespace Muzak
                 lastRect.y += 5;
                 lastRect.width = (Track.Duration + TIME_LEAD) * 64f;
 
-                var durationPos = lastRect.xMin + Track.Duration * 64;
-                GUI.Label(new Rect(new Vector2(durationPos, lastRect.y), new Vector2(2, position.height)), "", EditorStyles.selectionRect);
-                GUI.Label(new Rect(new Vector2(durationPos, lastRect.y - 15), new Vector2(60, 20)), Track.Duration.ToString(), EditorStyles.miniLabel);
+                var durationPos = lastRect.xMin + Track.Duration * 63;
+                GUI.Label(new Rect(new Vector2(durationPos, lastRect.y + 5), new Vector2(2, position.height)), "", EditorStyles.selectionRect);
+                GUI.Label(new Rect(new Vector2(durationPos, lastRect.y - 10), new Vector2(60, 20)), Track.Duration.ToString(), EditorStyles.miniLabel);
 
                 var newDuration = GUI.HorizontalSlider(lastRect, Track.Duration, 0, Track.Duration + TIME_LEAD, GUIStyle.none, GUI.skin.horizontalSliderThumb);
                 if (newDuration != Track.Duration && SnapEnabled)
                 {
-                    foreach(var channel in Track.Channels)
+                    foreach (var channel in Track.Channels)
                     {
-                        foreach(var sequence in channel.Sequences)
+                        foreach (var sequence in channel.Sequences)
                         {
                             var finalStartTime = (float)sequence.StartTime;
-                            if(Math.Abs(finalStartTime - newDuration) < SnapThreshold)
+                            if (Math.Abs(finalStartTime - newDuration) < SnapThreshold)
                             {
                                 newDuration = finalStartTime;
                                 break;
@@ -145,6 +172,13 @@ namespace Muzak
                     MuzakChannel channel = Track.Channels[channelIndex];
                     EditorGUILayout.BeginHorizontal(GUILayout.Height(64));
 
+                    var bpmWidth = 63 * (60 / (float)Track.BPM);
+                    var stepCount = ((Track.Duration + TIME_LEAD) * 63) / bpmWidth;
+                    for (var i = 0; i < stepCount; ++i)
+                    {
+                        GUI.DrawTexture(new Rect(4 + i * bpmWidth + TrackScroll.x, 22 + channelIndex * 67 + TrackScroll.y, bpmWidth, 64), GridTexture);
+                    }
+
                     //GUILayout.Label("", GUILayout.Width(3));
                     var offsetCounter = 0.0;
                     for (int sequenceIndex = 0; sequenceIndex < channel.Sequences.Count; sequenceIndex++)
@@ -152,7 +186,7 @@ namespace Muzak
                         MuzakSequence sequence = channel.Sequences[sequenceIndex];
                         offsetCounter += sequence.StartTime;
                         GUILayout.Label("", GUILayout.Width((float)offsetCounter * 64));
-                        GUILayout.Label("", EditorStyles.selectionRect, GUILayout.Height(64), GUILayout.Width((float)sequence.Duration * 64));
+                        GUILayout.Label("", EditorStyles.selectionRect, GUILayout.Height(64), GUILayout.Width((float)sequence.Duration * 63));
                         var buttonRect = GUILayoutUtility.GetLastRect();
                         if (buttonRect.Contains(Event.current.mousePosition) && Event.current.button == 0)
                         {

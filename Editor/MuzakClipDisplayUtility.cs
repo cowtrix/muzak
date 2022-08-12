@@ -53,6 +53,7 @@ namespace Muzak
                 }
             }
             tex.Apply();
+            tex.hideFlags = HideFlags.DontSave;
             m_textureLookup[clip] = tex;
             return tex;
         }
