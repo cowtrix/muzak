@@ -64,12 +64,13 @@ namespace Muzak
             }
             EditorGUILayout.EndHorizontal();
 
-
             GUILayout.Label("Volume over time");
             CurrentSequence.VolumeCurve = EditorGUILayout.CurveField(CurrentSequence.VolumeCurve);
 
             GUILayout.Label("Volume over strength");
             CurrentSequence.StrengthCurve = EditorGUILayout.CurveField(CurrentSequence.StrengthCurve);
+
+            CurrentSequence.Probability = EditorGUILayout.Slider("Probability", CurrentSequence.Probability, 0, 1);
 
             EditorUtility.SetDirty(CurrentTrack);
             EditorGUILayout.EndVertical();

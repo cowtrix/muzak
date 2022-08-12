@@ -31,6 +31,7 @@ namespace Muzak
         public AnimationCurve StrengthCurve;
         public double StartTime;
         public double Offset;
+        public float Probability;
     }
 
     [CreateAssetMenu(menuName = "Muzak/Track")]

@@ -1,4 +1,3 @@
-using Common;
 using System;
 using System.Collections;
 using System.Linq;
@@ -29,14 +28,14 @@ namespace Muzak
         {
             get
             {
-                if(!m_gridTexture)
+                if (!m_gridTexture)
                 {
                     m_gridTexture = new Texture2D(64, 64);
-                    for(var x = 0; x < 64; x++)
+                    for (var x = 0; x < 64; x++)
                     {
                         for (var y = 0; y < 64; y++)
                         {
-                            m_gridTexture.SetPixel(x, y, x == 0 ? Color.white.WithAlpha(.5f) : Color.clear);
+                            m_gridTexture.SetPixel(x, y, x == 0 ? new Color(1, 1, 1, .5f) : Color.clear);
                         }
                     }
                     m_gridTexture.Apply();
@@ -102,16 +101,40 @@ namespace Muzak
                                 StrengthCurve = AnimationCurve.Linear(0, 0, 1, 1),
                                 StartTime = 0,
                                 Duration = newClip.length,
+                                Probability = 1,
                             });
                         }
                         channel.Clip = newClip;
                     }
+                    EditorGUILayout.BeginHorizontal();
                     if (GUILayout.Button(EditorGUIUtility.IconContent("TreeEditor.Trash"), GUILayout.Width(30)))
                     {
                         Track.Channels.Remove(channel);
                         GUIUtility.ExitGUI();
                         return;
                     }
+                    if (GUILayout.Button(EditorGUIUtility.IconContent("Clipboard"), GUILayout.Width(30)))
+                    {
+                        Track.Channels.Add(new MuzakChannel
+                        {
+                            Clip = channel.Clip,
+                            Volume = channel.Volume,
+                            Sequences = channel.Sequences.Select(s => new MuzakSequence
+                            {
+                                Duration = s.Duration,
+                                StartThreshold = s.StartThreshold,
+                                EndThreshold = s.EndThreshold,
+                                Offset = s.Offset,
+                                StrengthCurve = s.StrengthCurve,
+                                VolumeCurve = s.VolumeCurve,
+                                Probability = s.Probability,
+                                StartTime = s.StartTime
+                            }).ToList()
+                        });
+                        GUIUtility.ExitGUI();
+                        return;
+                    }
+                    EditorGUILayout.EndHorizontal();
                     EditorGUILayout.EndVertical();
                 }
                 if (GUILayout.Button(EditorGUIUtility.IconContent("CreateAddNew"), GUILayout.Width(115)))

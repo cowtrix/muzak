@@ -9,16 +9,20 @@ namespace Muzak
         public override void OnInspectorGUI()
         {
             var player = (MuzakPlayer)target;
-            /*EditorGUILayout.BeginHorizontal();
-            if (GUILayout.Button(EditorGUIUtility.IconContent("d_Animation.Play"), EditorStyles.miniButtonLeft))
+            EditorGUILayout.BeginHorizontal();
+            if (GUILayout.Button(EditorGUIUtility.IconContent("d_PlayButton On"), EditorStyles.miniButtonLeft))
             {
-                player.PlayTrack(player.Track);
+                player.Play();
             }
-            if (GUILayout.Button(EditorGUIUtility.IconContent("d_Animation.Stop"), EditorStyles.miniButtonLeft))
+            if (GUILayout.Button(EditorGUIUtility.IconContent("d_PauseButton On"), EditorStyles.miniButtonMid))
             {
-                //player.StopAllCoroutines();
+                player.Pause();
             }
-            EditorGUILayout.EndHorizontal();*/
+            if (GUILayout.Button(EditorGUIUtility.IconContent("d_PreMatQuad"), EditorStyles.miniButtonRight))
+            {
+                player.Stop();
+            }
+            EditorGUILayout.EndHorizontal();
 
 
             base.OnInspectorGUI();

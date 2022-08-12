@@ -1,5 +1,4 @@
-﻿using Common;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 namespace Muzak
@@ -33,7 +32,7 @@ namespace Muzak
                 s++;
             }
 
-            var foreground = Color.white.WithAlpha(.5f);
+            var foreground = new Color(1, 1, 1, .5f);
             var background = Color.clear;
 
             for (int x = 0; x < width; x++)
