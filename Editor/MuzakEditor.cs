@@ -16,7 +16,7 @@ namespace Muzak
             w.titleContent = new GUIContent("Muzak Editor");
         }
 
-        public const int TIME_LEAD = 1;
+        public const int TIME_LEAD = 15;
         public const float SECOND_WIDTH = 59f;
 
         public MuzakTrack Track { get; private set; }
@@ -73,8 +73,6 @@ namespace Muzak
                 EditorGUILayout.HelpBox("Open a Track", MessageType.Info);
                 return;
             }
-
-            var ySize = Track.Channels.Count * 70;
 
             // Timeline
             var xScroll = new Vector2(TrackScroll.x, 0);
@@ -148,7 +146,7 @@ namespace Muzak
             }
 
             {
-                EditorGUILayout.BeginScrollView(xScroll, GUIStyle.none, GUIStyle.none, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
+                EditorGUILayout.BeginScrollView(TrackScroll, GUIStyle.none, GUIStyle.none, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
                 EditorGUILayout.BeginHorizontal(GUILayout.Width(Track.Duration * 64));
                 //GUILayout.Label("", GUILayout.Width(2));
                 for (var i = 0; i < Track.Duration + TIME_LEAD; i++)
@@ -195,14 +193,15 @@ namespace Muzak
                     MuzakChannel channel = Track.Channels[channelIndex];
                     EditorGUILayout.BeginHorizontal(GUILayout.Height(64));
 
+                    // Draw BPM grid
                     var bpmWidth = 63 * (60 / (float)Track.BPM);
                     var stepCount = ((Track.Duration + TIME_LEAD) * 63) / bpmWidth;
                     for (var i = 0; i < stepCount; ++i)
                     {
-                        GUI.DrawTexture(new Rect(4 + i * bpmWidth + TrackScroll.x, 22 + channelIndex * 67 + TrackScroll.y, bpmWidth, 64), GridTexture);
+                        GUI.DrawTexture(new Rect(4 + i * bpmWidth, 22 + channelIndex * 67, bpmWidth, 66), GridTexture);
                     }
 
-                    //GUILayout.Label("", GUILayout.Width(3));
+                    // Draw Sequences
                     var offsetCounter = 0.0;
                     for (int sequenceIndex = 0; sequenceIndex < channel.Sequences.Count; sequenceIndex++)
                     {
@@ -243,17 +242,17 @@ namespace Muzak
                 EditorGUILayout.EndScrollView();
             }
 
-            {
+            var margins = new Vector2(130, 55);
+            var scrollDisplaySize = new Vector2(position.width - margins.x, position.height - margins.y);
+            var contentDisplaySize = new Vector2((Track.Duration + TIME_LEAD) * 63, Track.Channels.Count * 70);
+            var scrollSize = new Vector2(Mathf.Min(scrollDisplaySize.x, (contentDisplaySize.x / scrollDisplaySize.x) * scrollDisplaySize.x), 
+                Mathf.Min(scrollDisplaySize.y, (contentDisplaySize.y / scrollDisplaySize.y) * scrollDisplaySize.y));
 
-            }
-
-            var yScrollSize = Mathf.Min(1, ((this.position.height - 80) / (float)ySize));
-            var xScrollSize = Mathf.Min(1, (this.position.width - 150) / (float)((Track.Duration + TIME_LEAD) * 32));
-            var newYScroll = GUILayout.VerticalScrollbar(yScroll.y, yScrollSize, 0, 1, GUILayout.ExpandHeight(true));
+            var newYScroll = GUILayout.VerticalScrollbar(yScroll.y, scrollSize.y, 0, contentDisplaySize.y, GUILayout.ExpandHeight(true));
             EditorGUILayout.EndHorizontal();
             EditorGUILayout.BeginHorizontal();
             GUILayout.Space(126);
-            var newXScroll = GUILayout.HorizontalScrollbar(xScroll.x, xScrollSize, 0, 1, GUILayout.ExpandWidth(true));
+            var newXScroll = GUILayout.HorizontalScrollbar(xScroll.x, scrollSize.x, 0, contentDisplaySize.x, GUILayout.ExpandWidth(true));
             EditorGUILayout.EndHorizontal();
             TrackScroll = new Vector2(newXScroll, newYScroll);
 

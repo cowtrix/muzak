@@ -69,7 +69,7 @@ namespace Muzak
 
             do
             {
-                const double lookAhead = .1;
+                const double lookAhead = .0;
                 foreach (var sourceChannel in sourceChannelMapping)
                 {
                     foreach (var sequence in sourceChannel.Key.Sequences)
@@ -87,7 +87,6 @@ namespace Muzak
                 }
                 while (PlayState != ePlayState.Stopped && AudioSettings.dspTime < (loopStartTime + Track.Duration) - lookAhead)
                 {
-                    var t = AudioSettings.dspTime - startTime;
                     var loopT = AudioSettings.dspTime - loopStartTime;
 
                     switch (PlayState)
