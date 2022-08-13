@@ -32,6 +32,21 @@ namespace Muzak
         public double StartTime;
         public double Offset;
         public float Probability;
+
+        public MuzakSequence Clone()
+        {
+            return new MuzakSequence
+            {
+                Duration = this.Duration,
+                StartThreshold = this.StartThreshold,
+                EndThreshold = this.EndThreshold,
+                Offset = this.Offset,
+                StrengthCurve = this.StrengthCurve,
+                VolumeCurve = this.VolumeCurve,
+                Probability = this.Probability,
+                StartTime = this.StartTime
+            };
+        }
     }
 
     [CreateAssetMenu(menuName = "Muzak/Track")]

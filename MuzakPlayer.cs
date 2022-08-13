@@ -15,6 +15,7 @@ namespace Muzak
         }
 
         public ePlayState PlayState { get; private set; }
+        public double CurrentLoopTime { get; set; }
 
         public MuzakTrack Track;
         [Range(0, 1)]
@@ -25,15 +26,16 @@ namespace Muzak
         public float FadeOutTime = 1;
         public AnimationCurve FadeOutCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
 
-        private void Start()
-        {
-            StartCoroutine(PlayTrackAsync(Track));
-        }
+        private Coroutine m_currentCoroutine;
 
         [ContextMenu("Play")]
         public void Play()
         {
             PlayState = ePlayState.Playing;
+            if (m_currentCoroutine == null)
+            {
+                m_currentCoroutine = StartCoroutine(PlayTrackAsync(Track));
+            }
         }
 
         public void Pause()
@@ -48,15 +50,19 @@ namespace Muzak
 
         IEnumerator PlayTrackAsync(MuzakTrack track)
         {
-            var sourceChannelMapping = new Dictionary<MuzakChannel, AudioSource>();
+            var sourceChannelMapping = new List<(MuzakChannel, MuzakSequence, AudioSource)>();
             foreach (var channel in track.Channels)
             {
-                var source = new GameObject($"MuzakTrackPlayer_{channel.Clip.name}")
+                for (int i = 0; i < channel.Sequences.Count; i++)
+                {
+                    var sequence = channel.Sequences[i];
+                    var source = new GameObject($"MuzakTrackPlayer_{channel.Clip.name}_{i}")
                     .AddComponent<AudioSource>();
-                source.transform.SetParent(transform);
-                source.clip = channel.Clip;
-                source.playOnAwake = false;
-                sourceChannelMapping[channel] = source;
+                    source.transform.SetParent(transform);
+                    source.clip = channel.Clip;
+                    source.playOnAwake = false;
+                    sourceChannelMapping.Add((channel, sequence, source));
+                }
             }
 
             while (PlayState != ePlayState.Playing)
@@ -64,31 +70,31 @@ namespace Muzak
                 yield return null;
             }
             var loopStartTime = AudioSettings.dspTime;
-            var startTime = loopStartTime;
             var playingness = 0f;
 
             do
             {
                 const double lookAhead = .0;
-                foreach (var sourceChannel in sourceChannelMapping)
+                foreach (var sequenceSource in sourceChannelMapping)
                 {
-                    foreach (var sequence in sourceChannel.Key.Sequences)
+                    var channel = sequenceSource.Item1;
+                    var sequence = sequenceSource.Item2;
+                    var source = sequenceSource.Item3;
+
+                    var roll = Random.value;
+                    if (roll > sequence.Probability)
                     {
-                        var roll = Random.value;
-                        if (roll > sequence.Probability)
-                        {
-                            continue;
-                        }
-                        var nextPlayTime = loopStartTime + sequence.StartTime;
-                        sourceChannel.Value.time = (float)sequence.Offset;
-                        sourceChannel.Value.PlayScheduled(nextPlayTime);
-                        sourceChannel.Value.SetScheduledEndTime(nextPlayTime + sequence.Duration);
+                        continue;
                     }
+                    var nextPlayTime = loopStartTime + sequence.StartTime;
+                    source.time = (float)sequence.Offset;
+                    source.PlayScheduled(nextPlayTime);
+                    source.SetScheduledEndTime(nextPlayTime + sequence.Duration);
                 }
                 while (PlayState != ePlayState.Stopped && AudioSettings.dspTime < (loopStartTime + Track.Duration) - lookAhead)
                 {
                     var loopT = AudioSettings.dspTime - loopStartTime;
-
+                    CurrentLoopTime = loopT;
                     switch (PlayState)
                     {
                         case ePlayState.Playing:
@@ -111,22 +117,26 @@ namespace Muzak
                             else
                             {
                                 Strength = 0;
+                                PlayState = ePlayState.Stopped;
                             }
                             break;
                     }
 
 
-                    foreach (var sourceChannel in sourceChannelMapping)
+                    foreach (var sequenceSource in sourceChannelMapping)
                     {
                         // Adjust volume
-                        var channel = sourceChannel.Key;
-                        var sequence = channel.GetSequenceAtTime(loopT);
-                        if (sequence == null)
+                        var channel = sequenceSource.Item1;
+                        var sequence = sequenceSource.Item2;
+                        var source = sequenceSource.Item3;
+
+                        if(loopT < sequence.StartTime || loopT > sequence.StartTime + sequence.Duration)
                         {
+                            source.volume = 0;
                             continue;
                         }
+
                         var sequenceTime = loopT - (float)sequence.StartTime;
-                        var source = sourceChannel.Value;
                         source.volume = channel.Volume *
                             sequence.StrengthCurve.Evaluate(Strength) *
                             sequence.VolumeCurve.Evaluate((float)sequenceTime / (float)sequence.Duration);
@@ -136,13 +146,15 @@ namespace Muzak
                 loopStartTime = AudioSettings.dspTime + lookAhead;
             }
             while (PlayState != ePlayState.Stopped && track.Loop);
-            foreach (var sourceChannel in sourceChannelMapping)
+            foreach (var sequenceSource in sourceChannelMapping)
             {
-                if (sourceChannel.Value)
+                var source = sequenceSource.Item3;
+                if (source)
                 {
-                    Destroy(sourceChannel.Value.gameObject);
+                    Destroy(source.gameObject);
                 }
             }
+            m_currentCoroutine = null;
         }
     }
 }

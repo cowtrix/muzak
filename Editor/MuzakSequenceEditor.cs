@@ -55,10 +55,11 @@ namespace Muzak
             GUI.DrawTexture(lastRect, MuzakClipDisplayUtility.GetTexture(CurrentChannel.Clip));
 
             // Offset field and duration field
-            CurrentSequence.Offset = EditorGUILayout.DoubleField("Offset", CurrentSequence.Offset);
+            CurrentSequence.StartTime = EditorGUILayout.DoubleField("Start Time", CurrentSequence.StartTime);
+            CurrentSequence.Offset = EditorGUILayout.DoubleField("Clip Offset", CurrentSequence.Offset);
             EditorGUILayout.BeginHorizontal();
             CurrentSequence.Duration = System.Math.Min(CurrentChannel.Clip.length - CurrentSequence.Offset, EditorGUILayout.DoubleField("Duration", CurrentSequence.Duration));
-            if (GUILayout.Button(EditorGUIUtility.IconContent("StepButton"), GUILayout.Height(20), GUILayout.Width(30)))
+            if (CurrentSequence.Duration > CurrentChannel.Clip.length || GUILayout.Button(EditorGUIUtility.IconContent("StepButton"), GUILayout.Height(20), GUILayout.Width(30)))
             {
                 CurrentSequence.Duration = CurrentChannel.Clip.length;
             }
@@ -71,6 +72,11 @@ namespace Muzak
             CurrentSequence.StrengthCurve = EditorGUILayout.CurveField(CurrentSequence.StrengthCurve);
 
             CurrentSequence.Probability = EditorGUILayout.Slider("Probability", CurrentSequence.Probability, 0, 1);
+
+            if(GUILayout.Button("Delete Sequence"))
+            {
+                CurrentChannel.Sequences.RemoveAt(m_sequenceIndex);
+            }
 
             EditorUtility.SetDirty(CurrentTrack);
             EditorGUILayout.EndVertical();

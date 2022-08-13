@@ -46,6 +46,12 @@ namespace Muzak
         }
         private Texture2D m_gridTexture;
 
+        public void Update()
+        {
+            // This is necessary to make the framerate normal for the editor window.
+            Repaint();
+        }
+
         private void OnGUI()
         {
             GUI.skin = Resources.Load<GUISkin>("MuzakSkin");
@@ -117,17 +123,7 @@ namespace Muzak
                         {
                             Clip = channel.Clip,
                             Volume = channel.Volume,
-                            Sequences = channel.Sequences.Select(s => new MuzakSequence
-                            {
-                                Duration = s.Duration,
-                                StartThreshold = s.StartThreshold,
-                                EndThreshold = s.EndThreshold,
-                                Offset = s.Offset,
-                                StrengthCurve = s.StrengthCurve,
-                                VolumeCurve = s.VolumeCurve,
-                                Probability = s.Probability,
-                                StartTime = s.StartTime
-                            }).ToList()
+                            Sequences = channel.Sequences.Select(s => s.Clone()).ToList()
                         });
                         GUIUtility.ExitGUI();
                         return;
@@ -157,12 +153,21 @@ namespace Muzak
                 EditorGUILayout.EndHorizontal();
                 var lastRect = GUILayoutUtility.GetLastRect();
                 lastRect.y += 5;
-                lastRect.width = (Track.Duration + TIME_LEAD) * 64f;
+                lastRect.width = (Track.Duration + TIME_LEAD) * 63f;
 
                 var durationPos = lastRect.xMin + Track.Duration * 63;
                 GUI.Label(new Rect(new Vector2(durationPos, lastRect.y + 5), new Vector2(2, position.height)), "", EditorStyles.selectionRect);
-                GUI.Label(new Rect(new Vector2(durationPos, lastRect.y - 10), new Vector2(60, 20)), Track.Duration.ToString(), EditorStyles.miniLabel);
+                var selectedPlayer = Selection.activeGameObject?.GetComponent<MuzakPlayer>();
+                if (selectedPlayer)
+                {
+                    var playPos = lastRect.xMin + selectedPlayer.CurrentLoopTime * 63;
+                    GUI.color = new Color(1, 1, 1, .5f);
+                    GUI.Label(new Rect(new Vector2((float)playPos, lastRect.y + 5), new Vector2(2, position.height)), "", EditorStyles.selectionRect);
+                    GUI.color = Color.white;
+                }
+                GUI.Label(new Rect(new Vector2(durationPos + 6, lastRect.y - 10), new Vector2(60, 20)), Track.Duration.ToString(), EditorStyles.miniLabel);
 
+                lastRect.x += 3;
                 var newDuration = GUI.HorizontalSlider(lastRect, Track.Duration, 0, Track.Duration + TIME_LEAD, GUIStyle.none, GUI.skin.horizontalSliderThumb);
                 if (newDuration != Track.Duration && SnapEnabled)
                 {
@@ -202,33 +207,45 @@ namespace Muzak
                     }
 
                     // Draw Sequences
-                    var offsetCounter = 0.0;
                     for (int sequenceIndex = 0; sequenceIndex < channel.Sequences.Count; sequenceIndex++)
                     {
-                        MuzakSequence sequence = channel.Sequences[sequenceIndex];
-                        offsetCounter += sequence.StartTime;
-                        GUILayout.Label("", GUILayout.Width((float)offsetCounter * 64));
+                        var sequence = channel.Sequences[sequenceIndex];
+                        var lastSequence = sequenceIndex > 0 ? channel.Sequences[sequenceIndex - 1] : null;
+                        var currentOffset = lastSequence != null ? lastSequence.StartTime + lastSequence.Duration : 0;
+                        if(sequenceIndex == 0 || sequence.StartTime - currentOffset > 1)
+                        {
+                            GUILayout.Label("", GUILayout.Width((float)(sequence.StartTime - currentOffset) * 63));
+                        }
                         GUILayout.Label("", EditorStyles.selectionRect, GUILayout.Height(64), GUILayout.Width((float)sequence.Duration * 63));
                         var buttonRect = GUILayoutUtility.GetLastRect();
-                        if (buttonRect.Contains(Event.current.mousePosition) && Event.current.button == 0)
+                        if (buttonRect.Contains(Event.current.mousePosition))
                         {
-                            if (Event.current.type == EventType.MouseDown)
+                            if (GUI.Button(new Rect(buttonRect.xMax - 15, buttonRect.y + 5, 20, 20), EditorGUIUtility.IconContent("Clipboard"), GUIStyle.none))
                             {
-                                DragDown = true;
+                                var clone = sequence.Clone();
+                                clone.StartTime = sequence.StartTime + sequence.Duration;
+                                channel.Sequences.Add(clone);
                             }
-                            else if (Event.current.type == EventType.MouseUp)
+                            else if (Event.current.button == 0)
                             {
-                                DragDown = false;
-                                // Select sequence
-                                MuzakSequenceEditor.SetData(Track, channelIndex, sequenceIndex);
-                                Event.current.Use();
+                                if (Event.current.type == EventType.MouseDown)
+                                {
+                                    DragDown = true;
+                                }
+                                else if (Event.current.type == EventType.MouseUp)
+                                {
+                                    DragDown = false;
+                                    // Select sequence
+                                    MuzakSequenceEditor.SetData(Track, channelIndex, sequenceIndex);
+                                    Event.current.Use();
+                                }
+                                if (DragDown)
+                                {
+                                    sequence.StartTime = System.Math.Max(0, sequence.StartTime + Event.current.delta.x / 64f);
+                                }
                             }
-                            if (DragDown)
-                            {
-                                sequence.StartTime = System.Math.Max(0, sequence.StartTime + Event.current.delta.x / 64f);
-                            }
-
                         }
+                        
                         if (channel.Clip)
                         {
                             var textureRect = new Rect((float)sequence.Offset / channel.Clip.length, 0, Mathf.Min(1, (float)sequence.Duration / channel.Clip.length), 1);
