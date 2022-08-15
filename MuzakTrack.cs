@@ -52,8 +52,7 @@ namespace Muzak
     [CreateAssetMenu(menuName = "Muzak/Track")]
     public class MuzakTrack : ScriptableObject
     {
-        public AnimationCurve StrengthCurve;
-        public AudioMixer Mixer;
+        public AudioMixerGroup Mixer;
         public List<MuzakChannel> Channels = new List<MuzakChannel>();
         public float Duration;
         public bool Loop;

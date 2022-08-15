@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using UnityEditor;
@@ -46,10 +47,45 @@ namespace Muzak
         }
         private Texture2D m_gridTexture;
 
+        private MuzakPlayer m_focusedPlayer;
+        private Dictionary<MuzakSequence, Color> m_colorMap = new Dictionary<MuzakSequence, Color>();
+
         public void Update()
         {
             // This is necessary to make the framerate normal for the editor window.
             Repaint();
+        }
+
+        private void OnSelectionChange()
+        {
+            var player = Selection.activeGameObject?.GetComponent<MuzakPlayer>();
+
+            if (player && player != m_focusedPlayer)
+            {
+                if (m_focusedPlayer)
+                {
+                    m_focusedPlayer.EventListener.RemoveAllListeners();
+                }
+                m_focusedPlayer = player;
+                m_focusedPlayer.EventListener.AddListener(OnPlayerEvent);
+            }
+        }
+
+        private void OnPlayerEvent(MuzakPlayerEvent.MuzakEventInfo ev)
+        {
+            switch (ev.EventType)
+            {
+                case MuzakPlayerEvent.eEventType.TrackLoopStarted:
+                case MuzakPlayerEvent.eEventType.TrackLoopEnded:
+                    m_colorMap.Clear();
+                    return;
+                case MuzakPlayerEvent.eEventType.SequenceStarted:
+                    m_colorMap[Track.Channels[ev.Channel].Sequences[ev.Sequence]] = Color.blue;
+                    break;
+                case MuzakPlayerEvent.eEventType.SequenceEnded:
+                    m_colorMap.Remove(Track.Channels[ev.Channel].Sequences[ev.Sequence]);
+                    break;
+            }
         }
 
         private void OnGUI()
@@ -111,13 +147,13 @@ namespace Muzak
                         channel.Clip = newClip;
                     }
                     EditorGUILayout.BeginHorizontal();
-                    if (GUILayout.Button(EditorGUIUtility.IconContent("TreeEditor.Trash"), GUILayout.Width(30)))
+                    if (GUILayout.Button(EditorGUIUtility.IconContent("TreeEditor.Trash"), GUILayout.Width(30), GUILayout.Height(23)))
                     {
                         Track.Channels.Remove(channel);
                         GUIUtility.ExitGUI();
                         return;
                     }
-                    if (GUILayout.Button(EditorGUIUtility.IconContent("Clipboard"), GUILayout.Width(30)))
+                    if (GUILayout.Button(EditorGUIUtility.IconContent("Clipboard"), GUILayout.Width(30), GUILayout.Height(23)))
                     {
                         Track.Channels.Add(new MuzakChannel
                         {
@@ -144,7 +180,6 @@ namespace Muzak
             {
                 EditorGUILayout.BeginScrollView(TrackScroll, GUIStyle.none, GUIStyle.none, GUILayout.ExpandWidth(true), GUILayout.ExpandHeight(true));
                 EditorGUILayout.BeginHorizontal(GUILayout.Width(Track.Duration * 64));
-                //GUILayout.Label("", GUILayout.Width(2));
                 for (var i = 0; i < Track.Duration + TIME_LEAD; i++)
                 {
                     GUILayout.Label($"{i} . . . . . . . . . . . . . ", EditorStyles.miniBoldLabel, GUILayout.Width(SECOND_WIDTH), GUILayout.Height(15));
@@ -157,11 +192,10 @@ namespace Muzak
 
                 var durationPos = lastRect.xMin + Track.Duration * 63;
                 GUI.Label(new Rect(new Vector2(durationPos, lastRect.y + 5), new Vector2(2, position.height)), "", EditorStyles.selectionRect);
-                var selectedPlayer = Selection.activeGameObject?.GetComponent<MuzakPlayer>();
-                if (selectedPlayer)
+                if (m_focusedPlayer)
                 {
-                    var playPos = lastRect.xMin + selectedPlayer.CurrentLoopTime * 63;
-                    GUI.color = new Color(1, 1, 1, .5f);
+                    var playPos = lastRect.xMin + m_focusedPlayer.CurrentLoopTime * 63;
+                    GUI.color = new Color(1, 0, 0, .5f);
                     GUI.Label(new Rect(new Vector2((float)playPos, lastRect.y + 5), new Vector2(2, position.height)), "", EditorStyles.selectionRect);
                     GUI.color = Color.white;
                 }
@@ -199,13 +233,16 @@ namespace Muzak
                     EditorGUILayout.BeginHorizontal(GUILayout.Height(64));
 
                     // Draw BPM grid
-                    var bpmWidth = 63 * (60 / (float)Track.BPM);
-                    var stepCount = ((Track.Duration + TIME_LEAD) * 63) / bpmWidth;
-                    for (var i = 0; i < stepCount; ++i)
+                    if(Track.BPM > 30)
                     {
-                        GUI.DrawTexture(new Rect(4 + i * bpmWidth, 22 + channelIndex * 67, bpmWidth, 66), GridTexture);
+                        var bpmWidth = 63 * (60 / (float)Track.BPM);
+                        var stepCount = ((Track.Duration + TIME_LEAD) * 63) / bpmWidth;
+                        for (var i = 0; i < stepCount; ++i)
+                        {
+                            GUI.DrawTexture(new Rect(4 + i * bpmWidth, 22 + channelIndex * 67, bpmWidth, 66), GridTexture);
+                        }
                     }
-
+                    
                     // Draw Sequences
                     for (int sequenceIndex = 0; sequenceIndex < channel.Sequences.Count; sequenceIndex++)
                     {
@@ -216,7 +253,13 @@ namespace Muzak
                         {
                             GUILayout.Label("", GUILayout.Width((float)(sequence.StartTime - currentOffset) * 63));
                         }
+                        if(!m_colorMap.TryGetValue(sequence, out var color))
+                        {
+                            color = Color.white;
+                        }
+                        GUI.color = color;
                         GUILayout.Label("", EditorStyles.selectionRect, GUILayout.Height(64), GUILayout.Width((float)sequence.Duration * 63));
+                        GUI.color = Color.white;
                         var buttonRect = GUILayoutUtility.GetLastRect();
                         if (buttonRect.Contains(Event.current.mousePosition))
                         {

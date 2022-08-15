@@ -73,6 +73,7 @@ namespace Muzak
 
             CurrentSequence.Probability = EditorGUILayout.Slider("Probability", CurrentSequence.Probability, 0, 1);
 
+            GUILayout.Label("", GUILayout.ExpandHeight(true));
             if(GUILayout.Button("Delete Sequence"))
             {
                 CurrentChannel.Sequences.RemoveAt(m_sequenceIndex);
