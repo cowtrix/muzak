@@ -43,6 +43,13 @@ namespace Muzak
             EditorGUILayout.EndVertical();
             GUI.enabled = true;
 
+            EditorGUILayout.BeginVertical("Window");
+            GUILayout.Label("Channel", EditorStyles.centeredGreyMiniLabel);
+            CurrentChannel.Volume = EditorGUILayout.Slider("Volume", CurrentChannel.Volume, 0, 2);
+            EditorGUILayout.EndVertical();
+
+            EditorGUILayout.BeginVertical("Window");
+            GUILayout.Label("Sequence", EditorStyles.centeredGreyMiniLabel);
             Scroll = EditorGUILayout.BeginScrollView(Scroll);
             GUILayout.Label("", GUILayout.Height(64), GUILayout.ExpandWidth(true));
             var lastRect = GUILayoutUtility.GetLastRect();
@@ -73,6 +80,10 @@ namespace Muzak
 
             CurrentSequence.Probability = EditorGUILayout.Slider("Probability", CurrentSequence.Probability, 0, 1);
 
+            EditorGUILayout.EndVertical();
+            EditorGUILayout.EndVertical();
+            EditorGUILayout.EndScrollView();
+
             GUILayout.Label("", GUILayout.ExpandHeight(true));
             if(GUILayout.Button("Delete Sequence"))
             {
@@ -80,8 +91,6 @@ namespace Muzak
             }
 
             EditorUtility.SetDirty(CurrentTrack);
-            EditorGUILayout.EndVertical();
-            EditorGUILayout.EndScrollView();
         }
     }
 }

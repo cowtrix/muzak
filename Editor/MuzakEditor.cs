@@ -52,17 +52,22 @@ namespace Muzak
 
         public void Update()
         {
+            RefreshSelectedPlayer();
             // This is necessary to make the framerate normal for the editor window.
             Repaint();
         }
 
         private void OnSelectionChange()
         {
-            var player = Selection.activeGameObject?.GetComponent<MuzakPlayer>();
+            RefreshSelectedPlayer();
+        }
 
-            if (player && player != m_focusedPlayer)
+        private void RefreshSelectedPlayer()
+        {
+            var player = Selection.activeGameObject?.GetComponent<MuzakPlayer>();
+            if (player && (player != m_focusedPlayer || m_focusedPlayer.Equals(null)))
             {
-                if (m_focusedPlayer)
+                if (m_focusedPlayer && !m_focusedPlayer.Equals(null))
                 {
                     m_focusedPlayer.EventListener.RemoveAllListeners();
                 }
@@ -77,6 +82,7 @@ namespace Muzak
             {
                 case MuzakPlayerEvent.eEventType.TrackLoopStarted:
                 case MuzakPlayerEvent.eEventType.TrackLoopEnded:
+                case MuzakPlayerEvent.eEventType.PlayerStop:
                     m_colorMap.Clear();
                     return;
                 case MuzakPlayerEvent.eEventType.SequenceStarted:
@@ -91,23 +97,31 @@ namespace Muzak
         private void OnGUI()
         {
             GUI.skin = Resources.Load<GUISkin>("MuzakSkin");
+            RefreshSelectedPlayer();
 
             // Toolbar
             EditorGUILayout.BeginHorizontal("Window", GUILayout.ExpandWidth(true), GUILayout.Height(20));
             GUILayout.Label(EditorGUIUtility.IconContent("Open"), GUILayout.Width(25));
             Track = (MuzakTrack)EditorGUILayout.ObjectField("", Track, typeof(MuzakTrack), true, GUILayout.Width(200));
-            GUILayout.Label(EditorGUIUtility.IconContent("MainStageView"), GUILayout.Width(20));
-            SnapEnabled = EditorGUILayout.Toggle(SnapEnabled, GUILayout.Width(20));
-            GUI.enabled = SnapEnabled;
-            SnapThreshold = EditorGUILayout.FloatField(SnapThreshold, GUILayout.Width(30));
+            if (Track)
+            {
+                GUILayout.Label(EditorGUIUtility.IconContent("MainStageView"), GUILayout.Width(20));
+                SnapEnabled = EditorGUILayout.Toggle(SnapEnabled, GUILayout.Width(20));
+                GUI.enabled = SnapEnabled;
+                SnapThreshold = EditorGUILayout.FloatField(SnapThreshold, GUILayout.Width(30));
+                GUI.enabled = true;
+
+                GUILayout.Label(EditorGUIUtility.IconContent("d_preAudioLoopOff"), GUILayout.Width(20));
+                Track.Loop = EditorGUILayout.Toggle(Track.Loop, GUILayout.Width(30));
+
+                GUILayout.Label("BPM", GUILayout.Width(30));
+                Track.BPM = EditorGUILayout.IntField(Track.BPM, GUILayout.Width(30));
+            }
+            GUILayout.Label("", GUILayout.ExpandWidth(true));
+            GUILayout.Label("Focused Player", GUILayout.ExpandWidth(false));
+            GUI.enabled = false;
+            EditorGUILayout.ObjectField("", m_focusedPlayer, typeof(MuzakPlayer), true, GUILayout.Width(200));
             GUI.enabled = true;
-
-            GUILayout.Label(EditorGUIUtility.IconContent("d_preAudioLoopOff"), GUILayout.Width(20));
-            Track.Loop = EditorGUILayout.Toggle(Track.Loop, GUILayout.Width(30));
-
-            GUILayout.Label("BPM", GUILayout.Width(30));
-            Track.BPM = EditorGUILayout.IntField(Track.BPM, GUILayout.Width(30));
-
             EditorGUILayout.EndHorizontal();
 
             if (!Track)
@@ -135,8 +149,6 @@ namespace Muzak
                         {
                             channel.Sequences.Add(new MuzakSequence
                             {
-                                StartThreshold = 0,
-                                EndThreshold = 0,
                                 VolumeCurve = AnimationCurve.Linear(0, 1, 1, 1),
                                 StrengthCurve = AnimationCurve.Linear(0, 0, 1, 1),
                                 StartTime = 0,
@@ -195,7 +207,7 @@ namespace Muzak
                 if (m_focusedPlayer)
                 {
                     var playPos = lastRect.xMin + m_focusedPlayer.CurrentLoopTime * 63;
-                    GUI.color = new Color(1, 0, 0, .5f);
+                    GUI.color = new Color(1, 0, 1, .5f);
                     GUI.Label(new Rect(new Vector2((float)playPos, lastRect.y + 5), new Vector2(2, position.height)), "", EditorStyles.selectionRect);
                     GUI.color = Color.white;
                 }

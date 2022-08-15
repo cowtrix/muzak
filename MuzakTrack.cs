@@ -22,10 +22,6 @@ namespace Muzak
     [Serializable]
     public class MuzakSequence
     {
-        [Range(0, 1)]
-        public float StartThreshold;
-        [Range(0, 1)]
-        public float EndThreshold;
         public double Duration;
         public AnimationCurve VolumeCurve;
         public AnimationCurve StrengthCurve;
@@ -38,8 +34,6 @@ namespace Muzak
             return new MuzakSequence
             {
                 Duration = this.Duration,
-                StartThreshold = this.StartThreshold,
-                EndThreshold = this.EndThreshold,
                 Offset = this.Offset,
                 StrengthCurve = this.StrengthCurve,
                 VolumeCurve = this.VolumeCurve,

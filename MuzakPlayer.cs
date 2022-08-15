@@ -57,8 +57,24 @@ namespace Muzak
         private Coroutine m_currentCoroutine;
         private Dictionary<MuzakSequence, (MuzakChannel, AudioSource)> m_sequenceSourceMappings = new Dictionary<MuzakSequence, (MuzakChannel, AudioSource)>();
 
+        public void TogglePlaying()
+        {
+            if(PlayState == ePlayState.Stopping || PlayState == ePlayState.Stopped)
+            {
+                Play();
+            }
+            else if (PlayState == ePlayState.Playing)
+            {
+                Stop();
+            }
+        }
+
         public void Play()
         {
+            if (!Track)
+            {
+                return;
+            }
             PlayState = ePlayState.Playing;
             if (m_currentCoroutine == null)
             {
@@ -96,19 +112,6 @@ namespace Muzak
         {
             var channelIndex = Track.Channels.IndexOf(channel);
             var sequenceIndex = Track.Channels[channelIndex].Sequences.IndexOf(sequence);
-            var roll = Random.value;
-            if (roll > sequence.Probability)
-            {
-                StartCoroutine(DelayedEvent(new MuzakPlayerEvent.MuzakEventInfo
-                {
-                    Channel = channelIndex,
-                    Sequence = sequenceIndex,
-                    Track = Track,
-                    EventType = MuzakPlayerEvent.eEventType.SequenceSkipped,
-                    Player = this,
-                }, (float)sequence.StartTime));
-                return null;
-            }
             AudioSource source;
             if (AudioSourcePrototype)
             {
@@ -134,6 +137,19 @@ namespace Muzak
         {
             var channelIndex = Track.Channels.IndexOf(channel);
             var sequenceIndex = Track.Channels[channelIndex].Sequences.IndexOf(sequence);
+            var roll = Random.value;
+            if (roll > sequence.Probability)
+            {
+                StartCoroutine(DelayedEvent(new MuzakPlayerEvent.MuzakEventInfo
+                {
+                    Channel = channelIndex,
+                    Sequence = sequenceIndex,
+                    Track = Track,
+                    EventType = MuzakPlayerEvent.eEventType.SequenceSkipped,
+                    Player = this,
+                }, (float)sequence.StartTime));
+                return;
+            }
             source.time = (float)sequence.Offset;
             source.PlayScheduled(AudioSettings.dspTime + sequence.StartTime);
             source.SetScheduledEndTime(AudioSettings.dspTime + sequence.StartTime + sequence.Duration);
@@ -160,6 +176,18 @@ namespace Muzak
         {
             yield return new WaitForSeconds(delay);
             EventListener.Invoke(eventInfo);
+        }
+
+        void OnDisable()
+        {
+            EventListener.Invoke(new MuzakPlayerEvent.MuzakEventInfo
+            {
+                EventType = MuzakPlayerEvent.eEventType.PlayerStop,
+                Player = this,
+                Track = Track,
+                Channel = -1,
+                Sequence = -1,
+            });
         }
 
         IEnumerator PlayTrackAsync(MuzakTrack track)
