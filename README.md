@@ -7,3 +7,5 @@ Muzak is a Unity Editor extension for building generative music.
 ## Getting Started
 
 Just clone the git repo into your Unity project.
+
+Create a new Muzak Track by context clicking in your Project view and selecting `Muzak > Track`.
